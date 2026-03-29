@@ -1,0 +1,1367 @@
+platform: "10. Web Application(웹) 보안"
+platform_number: 10
+category: "기술적 분야"
+items:
+  - id: "CI"
+    title: "코드 인젝션 (Code Injection)"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 내 다양한 인젝션 공격(LDAP, 운영체제 명령 실행, SSI, XPATH, XML, SSTI 인젝션 등)에 대해 외부 입력값이 쿼리나 명령어로 삽입되어 비인가된 접근이나 코드 실행의 가능 유무 점검"
+      check_purpose: "허용되지 않은 코드 및 쿼리 실행을 방지하여 비인가된 접근, 데이터 유출, 시스템 변조, 악성 코드 실행 등의 위협을 차단하여, 데이터 보호와 시스템 안정성을 확보하기 위함"
+      threat: "해당 취약점이 존재하는 경우 비인가된 데이터 접근으로 민감 정보가 탈취될 수 있으며, 시스템 명령어나 스크립트가 실행되어 서버 제어나 악성 코드 실행이 가능하고, 데이터 무결성이 훼손되어 정보의 신뢰성이 떨어지며, 서비스 거부 공격(DoS)으로 시스템 가용성이 저하될 수 있음. 따라서 \"|\", \";\", \"`\", \"<\" 등의 특수 문자에 대한 필터링 구현과 함께 입력값 검증, 화이트리스트 적용 등의 추가적인 보안 조치가 필요함"
+      reference:
+        - "※ LDAP 인젝션: 입력값이 LDAP(Lightweight Directory Access Protocol) 쿼리에 삽입되어 디렉터리 서비스 데이터에 대한 비인가된 조회, 수정, 삭제를 유발하는 공격"
+        - "※ 운영체제 명령 실행: 입력값이 시스템 명령어로 실행되어 서버의 운영체제 명령을 비인가로 수행하거나 민감한 시스템 정보를 노출하는 공격"
+        - "※ SSI 인젝션: 입력값이 서버 사이드 인클루드(Server Side Include) 명령어로 실행되어 웹 애플리케이션 서버에서 비인가된 스크립트 실행이나 파일 접근을 유발하는 공격"
+        - "※ XPath 인젝션: 입력값이 XPath 쿼리에 삽입되어 XML 데이터의 비인가된 조회, 추가, 삭제를 유발하는 공격"
+        - "※ XXE 인젝션: 입력값이 XML 문서나 쿼리에 삽입되어 XML 데이터에 대한 비인가된 접근, 외부 엔티티 참조(XML External Entities)를 통한 시스템 정보 유출을 유발하는 공격"
+        - "※ SSTI 인젝션: 입력값이 서버 사이드 템플릿 엔진에 삽입되어 템플릿 렌더링 과정에서 비인가된 코드 실행이나 서버 내부 데이터 노출을 유발하는 공격"
+        - "※ 소스코드 및 취약점 점검 필요"
+    target: "웹 애플리케이션 소스코드, 웹 방화벽"
+    criteria:
+      good: "임의의 입력값에 대하여 철저한 검증이 이루어져, 허용되지 않은 값이 필터링되고 허용된 값만 처리되는 경우"
+      vulnerable: "임의의 입력값에 대하여 검증 없이 명령이 실행되는 경우"
+    action: "화이트리스트 방식으로 쿼리를 허용된 값만 처리하고, 특수 문자에 대해 입력값 검증"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "LDAP 인젝션"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 사용자 입력값에 대하여 변조된 LDAP 쿼리 삽입 후 실행 가능 여부 확인
+
+          **■ 조치 방법**
+
+          1. 사용자 입력값을 화이트리스트로 지정하여 영문(a-z, A-Z)과 숫자(0-9)만을 허용
+          2. 특수문자를 사용해야 하는 경우 입력값(DN에 사용되는 특수문자는 '\'를 붙여 이스케이프 처리, 필터에 사용되는 특수문자는 '= + < > # \ , ; 앞뒤 공백' 등)에 대해서는 실행 명령이 아닌 일반문자로 인식되도록 처리
+          3. DN과 필터에 사용되는 사용자 입력값에는 특수문자 제거
+          4. 웹 방화벽에 LDAP 관련 특수문자를 필터링하도록 룰셋 적용
+
+          **※ 특수문자 필터링 예시**
+
+          | 구분 | 필터링 예시 | | | | | | |
+          |------|---|---|---|---|---|---|---|
+          | 변경 전 | \ | = | + | * | ( | ) | \0 |
+          | 변경 후 | \5c | \3d | \2b | \2a | \28 | \29 | \00 |
+
+          **※ 필터링 대상 예시**
+
+          | | | | | | |
+          |---|---|---|---|---|---|
+          | ' | " | - | # | ( | ) |
+          | < | > | = | /\* | \*/ | + |
+          | \* | ; | & | \| | \ | \0 |
+          | : | \` | % | user_tables | table_name | column_name |
+          | Syscolumns | union | select | insert | drop | update |
+          | and | or | If | join | substring | from |
+          | where | declare | substr | openrowset | xp_ | sysobject |
+
+      - os: "운영체제 명령실행"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 웹 애플리케이션 기능 내 전달되는 파라미터 값에 대하여 운영체제 명령어 삽입 후 실행 여부 확인
+
+          **■ 조치 방법**
+
+          1. 웹 애플리케이션 설계 시 운영체제로부터 명령어를 직접적으로 호출하지 않도록 구현하고, 언어/프레임워크에서 제공하는 안전한 API 사용
+          2. 명령어를 직접 호출하는 기능이 필요한 경우에는, 데이터가 OS의 명령어 해석기에 전달되기 전에 화이트리스트 기반으로 입력값을 검증/확인하도록 구현
+          3. 입력값에 대한 파라미터 데이터의 필터링 처리
+             - Unix/Linux: &, &&, \|, \|\|, ;, \`, $(), <, > 등
+             - Windows: &, \|, ^, % 등
+          4. 웹 서버 및 웹 애플리케이션 서버는 공개적으로 알려진 취약점이 제거된 상위 버전으로 업데이트 (KISA 보호나라&KrCERT/CC 알림마당 > 보안공지 https://www.boho.or.kr/)
+          5. 웹 방화벽에 모든 사용자 입력값을 대상으로 악용될 수 있는 특수문자 및 키워드 등에 대한 룰셋 적용
+
+          **※ 특수문자 필터링 처리 문자 설명**
+
+          | 구분 | 상세 설명 |
+          |------|----------|
+          | & | 첫 번째 명령어는 백그라운드에서 실행되며, 두 번째 명령어는 즉시 실행 |
+          | && | 첫 번째 명령어가 성공했을 때만 두 번째 명령어 실행 |
+          | \| | 두 명령어를 연결하여, 첫 번째 명령어의 출력을 두 번째 명령어의 입력으로 전달 |
+          | ; | 첫 번째 명령어 실행 후 성공여부와 무관하게 두 번째 명령어 실행 |
+          | \` \` 또는 $() | 백틱 또는 괄호 안에 있는 명령어를 실행하고 그 출력을 반환 |
+          | > 또는 >> | 명령 실행 결과를 파일로 생성(덮어쓰기 또는 추가) |
+          | < | 파일 내용을 명령어 입력으로 전달 |
+          | ^ (Windows) | 명령어 이스케이프/제어 문자로 사용 |
+          | % (Windows) | 환경 변수 치환 |
+          | \ | 이스케이프 문자 또는 뒤에 오는 특수문자를 무효화하거나 명령 연결 시 사용 |
+
+      - os: "SSI 인젝션"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 사용자가 입력 가능한 파라미터 값에 `<!--#echo var="DOCUMENT_ROOT" -->`를 삽입하여 전송 후 반환되는 페이지에 사이트의 홈 디렉터리가 표시되는지 확인
+
+          Step 2) 사용자가 입력 가능한 파라미터 값에 `<!-- #exec cmd="ls -al" -->`를 삽입하여 전송 후 반환되는 페이지에 디렉터리의 파일 리스트가 표시되는지 확인
+
+          Step 3) HTTP 요청(Request) 헤더에 명령어를 삽입하여 실행되는지 확인
+
+          ```
+          GET / HTTP/1.0
+          Referer: <!--#exec cmd="/bin/ps ax"-->
+          User-Agent: <!--#include virtual="/proc/version"-->
+          ```
+
+          **■ 조치 방법**
+
+          1. 화이트리스트 방식으로 사용자 입력에 대한 사용 가능한 문자들을 정의하여 정해진 문자를 제외한 나머지 모든 문자들을 필터링 처리
+          2. 필터링 해야 하는 대상은 GET 질의 문자열, POST 데이터, 쿠키, URL, 그리고 일반적으로 브라우저와 웹 서버가 주고받는 모든 데이터를 포함
+          3. 웹 서버의 SSI 기능을 사용하지 않거나, 웹 방화벽에 특수문자를 필터링하도록 룰셋 적용
+
+          **※ 특수문자 필터링 예시**
+
+          | 구분 | 필터링 예시 | | | | | | |
+          |------|---|---|---|---|---|---|---|
+          | 변경 전 | < | > | " | ( | ) | # | & |
+          | 변경 후 | &amp;lt; | &amp;gt; | &amp;quot; | &amp;#40; | &amp;#41; | &amp;#35; | &amp;amp; |
+
+      - os: "XPath 인젝션"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 취약점 존재 유무 판단을 위한 Xpath 쿼리 삽입 (※ 예시로 제시한 것으로, 웹 사이트 환경에 맞춰 점검해야 함)
+
+          ```
+          ' or '1'='1
+          ' and 'a' = 'b
+          ```
+
+          Step 2) 추가적인 쿼리 질의를 통하여 데이터 추출 등의 타당성 검토
+
+          ```
+          ' or count(parent::*[position()=1])=0 or 'a'='b
+          1' or string-length(username)=[COUNT] and '1'='1
+          ```
+
+          **■ 조치 방법**
+
+          1. XPath 쿼리에 사용자가 값을 입력할 수 있는 경우, 입력값 검증을 통해 필요 문자만을 받아들이게 함. ( ) = ' [ ] : , * / 등의 오동작를 유발하는 특수문자는 제한하며, 특정 특수문자만을 필터링하는 것이 아닌 허용된 문자 이외의 모든 입력을 화이트리스트 방식으로 필터링 처리
+          2. Xpath 및 XQuery의 쿼리 삽입 시 사용되는 특수문자를 필터링하도록 웹 방화벽 룰셋 적용
+
+      - os: "XXE 인젝션"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 파일 업로드 페이지, API 엔드포인트, HTML Form 등 XML을 파싱하는 페이지 포인트 내 XML 객체 삽입 시도 (※ 예로 제시한 것으로, 웹 사이트 환경에 맞춰 점검해야 함)
+
+          ```
+          <?xml version="1.0" encoding="ISO-8859-1"?>
+          <!DOCTYPE foo [
+            <!ELEMENT foo ANY >
+            <!ENTITY xxe SYSTEM "file:///C:/Windows/System32/drivers/etc/hosts" >
+          ]>
+          <foo>&xxe;</foo>
+          ```
+
+          **■ 조치 방법**
+
+          1. 허용된 태그와 속성만 사용하도록 화이트리스트 방식을 이용한 입력값 검증 로직 구현
+          2. 최근 언어별 XML 파서의 경우, 기본적으로 외부 엔티티 처리가 비활성화되어 있으나 소스코드 상에서 명시적으로 비활성화 처리하는 것이 안전한 방법
+          3. 의도하지 않은 오동작이 발생할 가능성이 존재하는 외부 엔티티 참조 명령어 및 주요 스키마 등에 대하여 웹 방화벽에 룰셋 적용
+
+          **※ Java DTD(외부 엔티티) 비활성화 예시**
+
+          ```
+          // 공통 보안 설정
+          dbf.setXIncludeAware(false);
+
+          if (mode == SecurityMode.FULL_SECURE) {
+              dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+              dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+              dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+              dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+          } else if (mode == SecurityMode.LIMITED_SECURE) {
+              // DTD를 완전히 비활성화할 수 없는 경우
+              dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+              dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+              dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+          }
+          ```
+
+          **※ ASP.NET DTD(외부 엔티티) 비활성화 예시**
+
+          ```
+          // XmlDocument 객체 생성
+          XmlDocument doc = new XmlDocument();
+          // XmlResolver를 null로 설정하여 외부 엔티티의 해석을 비활성화
+          doc.XmlResolver = null;
+          ```
+
+          **※ PHP 8.0 이전 DTD(외부 엔티티) 비활성화 예시**
+
+          ```
+          libxml_disable_entity_loader(true);
+          ```
+
+          **※ PHP 8.0 이후 DTD(외부 엔티티) 비활성화 예시**
+
+          libxml_disable_entity_loader() 함수가 더 이상 사용되지 않으며, 외부 엔티티 로드는 기본적으로 비활성화되어있지만, LIBXML_NOENT 플래그로 인하여 XML 파서가 외부 엔티티를 확장하도록 설정되어있는 경우 XXE 취약점 발생 가능
+
+          ```
+          // DOMDocument 인스턴스 생성
+          $dom = new DOMDocument();
+          // 외부 엔티티 비활성화
+          $dom->loadXML($xmlfile, LIBXML_NONET);
+          ```
+
+      - os: "SSTI 인젝션"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 사용자 입력값이 서버 템플릿 엔진 내에서 처리되는지 확인하기 위해 \{\{7*7\}\} 등의 수식 삽입 시도
+
+          Step 2) 상위 컨텍스트 및 객체 접근을 시도하여 원격 코드 실행의 가능 여부를 판별하기 위하여 페이로드 입력 및 실행 유무 확인
+
+          **■ 조치 방법**
+
+          1. 템플릿 언어에서 예약된 의미를 가지는 문자({ } < > % # @ 등)에 대하여 이스케이프 처리
+          2. 템플릿 엔진의 안전 모드를 사용함으로써 템플릿 내에서 실행할 수 있는 명령을 제한하여 임의 코드 실행 방지
+          3. 안전 모드 및 내장 함수를 활용하여 보안 조치를 하는 경우 엔진의 버전과 그 버전에서 지원하는 기능을 고려하여 적절한 보안 패치 진행
+          4. 에러 메시지를 통해 사용된 템플릿 언어 및 관련 취약점에 대한 유의미한 정보를 제공할 가능성이 존재하므로, 노출되는 에러 메시지를 제한
+          5. 템플릿 엔진 내 사용되는 특수문자를 필터링하도록 웹 방화벽 룰셋 적용
+
+          **※ Java 사용자 입력값 특수문자 인코딩 처리 예시**
+
+          ```
+          name = org.apache.commons.text.StringEscapeUtils.escapeHtml4(name); // 사용자 입력값 인코딩
+          // 사용자 입력값 이스케이프 처리
+          public static String escapeSpecialCharacters(String input) {
+              if (input == null) return null;
+              return input.replaceAll("([*{}\\[\\]<>%#@])", "\\\\$1");
+          }
+          ```
+
+          **▪ Velocity 템플릿 엔진에서 제공하는 '$esc.html'를 사용하여 사용자 입력을 HTML 인코딩 처리**
+
+          ```
+          #set($userInput = $esc.html($params.get("userInput")))
+          <p>사용자 입력: $userInput</p>
+          ```
+
+          **▪ FreeMarker 템플릿 엔진의 내장 함수인 '?html'를 사용하여 사용자 입력을 HTML 인코딩 처리**
+
+          ```
+          <p>사용자 입력: ${userInput?html}!</p>
+          ```
+
+          **※ ASP.NET 사용자 입력값 특수문자 인코딩 처리 예시**
+
+          ```
+          // 사용자 입력값 인코딩
+          private static readonly Dictionary<char, string> HtmlEntities = new Dictionary<char, string> {
+              { '*', "&#42;" },
+              { '{', "&#123;" },
+              { '}', "&#125;" },
+              { '[', "&#91;" },
+              { ']', "&#93;" },
+              { '<', "&lt;" },
+              { '>', "&gt;" },
+              { '%', "&#37;" },
+              { '#', "&#35;" },
+              { '@', "&#64;" }
+          };
+          public static string EscapeHtmlEntities(string input) {
+              if (input == null) return null;
+              StringBuilder escapedString = new StringBuilder();
+              foreach (char ch in input) {
+                  if (HtmlEntities.ContainsKey(ch)) {
+                      escapedString.Append(HtmlEntities[ch]);
+                  } else {
+                      escapedString.Append(ch);
+                  }
+              }
+              return escapedString.ToString();
+          }
+
+          // 사용자 입력값 이스케이프 처리
+          public static string EscapeSpecialCharacters(string input) {
+              if (input == null) return null;
+              return Regex.Replace(input, @"([*{}\[\]<>%#@])", @"\$1");
+          }
+          ```
+
+          **※ Python 사용자 입력값 특수문자 인코딩 처리 예시**
+
+          ```
+          # 사용자 입력값 인코딩
+          def escape_html_entities(input_string):
+              if input_string is None:
+                  return None
+              html_entities = {
+                  '*': '&#42;',
+                  '{': '&#123;',
+                  '}': '&#125;',
+                  '[': '&#91;',
+                  ']': '&#93;',
+                  '<': '&lt;',
+                  '>': '&gt;',
+                  '%': '&#37;',
+                  '#': '&#35;',
+                  '@': '&#64;',
+              }
+              return ''.join(html_entities.get(char, char) for char in input_string)
+
+          # 사용자 입력값 이스케이프 처리
+          def escape_special_characters(input_string):
+              if input_string is None:
+                  return None
+              return re.sub(r'([*{}\[\]<>%#@])', r'\\\1', input_string)
+          ```
+
+          **▪ 사용자 입력을 직접 템플릿에 삽입하는 방식은 SSTI 취약점에 노출될 수 있으므로 사용자 입력을 템플릿 변수로 전달하는 방식을 사용하여 안전하게 처리**
+
+          ```
+          # Python(jinja2) 안전한 템플릿 사용 예시
+          template = "userinput : {{ userinput }}"
+          return render_template_string(template, userinput=param)
+          ```
+
+          **※ PHP 사용자 입력값 특수문자 인코딩 처리 예시**
+
+          ```
+          function escape_html_entities($input_string) {
+              if ($input_string === null) {
+                  return null;
+              }
+              $html_entities = [
+                  '*' => '&#42;',
+                  '{' => '&#123;',
+                  '}' => '&#125;',
+                  '[' => '&#91;',
+                  '<' => '&lt;',
+                  '>' => '&gt;',
+                  '%' => '&#37;',
+              ];
+              return strtr($input_string, $html_entities);
+          }
+          // 특수 문자 앞에 백슬래시를 추가하여 이스케이프 처리
+          function escape_special_characters($input_string) {
+              if ($input_string === null) {
+                  return null;
+              }
+              return preg_replace('/([*{}\[\]<>%#@])/', '\\\\$1', $input_string);
+          }
+
+          // htmlspecialchars 함수를 이용하여 사용자 입력값을 HTML 인코딩
+          $userInput = htmlspecialchars($userInput, ENT_QUOTES, 'UTF-8');
+          ```
+
+  - id: "SI"
+    title: "SQL 인젝션 (SQL Injection)"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 내 입력값이 SQL 쿼리에 삽입되어 비인가된 데이터베이스 접근과 조작 가능 여부 점검"
+      check_purpose: "웹 애플리케이션 내 SQL문으로 해석될 수 있는 입력값 허용을 차단하고 운영 중인 데이터베이스에 대한 비인가된 접근 및 조작을 방지하여, 데이터 무결성과 보안성을 확보하기 위함"
+      threat: "해당 취약점이 존재하는 경우, 입력값이 SQL 쿼리에 삽입되어 데이터베이스에 비인가된 접근을 허용하며, 공격자는 민감 데이터의 조회, 수정, 삭제를 포함한 다양한 악의적인 행위가 가능하므로 입력값에 대한 특수문자 필터링을 구현해야함"
+      reference:
+        - "※ SQL 인젝션: 사용자의 입력값으로 웹 사이트 SQL 쿼리가 완성되는 약점을 이용하여, 입력값을 변조해 비정상적인 SQL 쿼리를 조합하거나 실행하는 공격. 이는 개발자가 의도하지 않은 SQL문을 실행하게 하여 데이터베이스를 비정상적으로 조작하고, 민감한 데이터를 조회, 수정, 삭제할 수 있는 공격"
+        - "※ SQL 인젝션 공격 관련 코드 검토 필요"
+        - "※ 소스코드 및 취약점 점검 필요"
+    target: "웹 애플리케이션 소스코드, 웹 방화벽"
+    criteria:
+      good: "임의로 작성된 SQL 쿼리 입력에 대한 적절한 검증을 통해 비정상적인 쿼리가 실행되지 않도록 하는 경우"
+      vulnerable: "임의로 작성된 SQL 쿼리 입력에 대한 검증이 이루어지지 않아 비정상적인 쿼리가 실행되는 경우"
+    action: "소스코드 내 SQL 쿼리를 입력값으로 받는 함수나 코드를 사용할 경우, 임의의 SQL 쿼리 입력에 대한 검증 로직을 구현하여 서버에 검증되지 않는 SQL 쿼리요청 시 에러 페이지가 아닌 정상 페이지가 반환되도록 필터링 처리하고 웹방화벽에 SQL 인젝션 관련 룰셋을 적용하여 SQL 인젝션 공격을 차단함"
+    impact: "웹 서비스에서 사용하고 있는 명령어 및 특수문자가 필터링 되어 장애가 발생 될 수 있어 사전 영향도 및 코드 분석이 필요"
+    examples:
+      - os: "공통"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 사용자 입력값 조건에 따른 참, 거짓 SQL 쿼리를 삽입하여, 응답의 변화(응답시간, 에러메시지, 응답 내용 등) 유무 확인
+
+          Step 2) 인증 페이지(로그인, 비밀번호 검증 등) 내 참이 되는 SQL쿼리를 삽입하여 우회 유무 확인
+
+          **■ 조치 방법**
+
+          1. SQL 쿼리 내 사용되는 문자열의 유효성을 검증하는 로직 구현
+          2. 아래와 같은 특수문자에 대하여 사용자 입력값으로 지정 금지
+
+          | 문자 | 상세 설명 |
+          |------|----------|
+          | ' | 문자 데이터 구분 기호 |
+          | ; | 쿼리 구분 기호 |
+          | --, # | 해당 라인 주석 구분 기호 |
+          | /\* \*/ | /\* 와 \*/ 사이 구문 주석 |
+
+          3. Prepared Statements를 사용하여 사용자 입력과 SQL 쿼리를 분리하여 처리
+          4. 시스템에서 제공하는 에러 메시지 및 DBMS에서 제공하는 에러코드가 노출되지 않도록 예외처리
+          5. 웹 방화벽(WAF)에 대하여 SQL Injection 관련 룰셋 추가
+
+      - os: "Java"
+        content: |
+          **■ SQL 키워드 및 특수문자 필터링 로직 예시**
+
+          ```
+          ...
+          public static String sanitize(String input) {
+              if (input == null) {
+                  return null;
+              }
+              // 특수문자 및 키워드들을 공백으로 치환
+              String[] sqlKeywords = {"SELECT", "UNION", "INSERT", "UPDATE", "DELETE", "DROP", "--"};
+              String pattern = "(?i)\\b(" + String.join("|", sqlKeywords) + ")\\b|['\"\\\\;()<>#/*!]";
+              Pattern regex = Pattern.compile(pattern + "|--");
+              Matcher matcher = regex.matcher(input);
+              return matcher.replaceAll(" ");
+          }
+          ...
+          String sanitizedInput = sanitize(userInput);
+          ```
+
+          **■ Prepared Statement 사용 로직 예시**
+
+          ```
+          ...
+          String sql = "SELECT * FROM users WHERE username = ?";
+          PreparedStatement preparedStatement = connection.prepareStatement(sql);
+          preparedStatement.setString(1, userInput);
+          ...
+          ResultSet resultSet = preparedStatement.executeQuery();
+          ...
+          ```
+
+          ▪ JDBC 표준 예외 클래스를 사용하여 다양한 데이터베이스 시스템에 일관된 방식으로 예외처리
+
+          **■ 적절한 예외 처리 예시**
+
+          ```
+          try {
+              // 데이터베이스 작업
+          } catch (SQLException e) {
+              // 브라우저에 일반적인 오류 메시지를 반환
+              e.printStackTrace();
+              System.out.println("An error occurred. Please try again later.");
+          }
+          ```
+
+          ▪ 사용자 입력을 직접 쿼리에 포함시킬 시 취약점이 발생하므로, 파라미터 바인딩을 사용하여 구현
+
+          ▪ 파라미터 바인딩 : 쿼리를 실행할 때, 쿼리 문자열과 사용자 입력값(파라미터)을 분리하여 처리하는 기법. 데이터베이스는 쿼리 문자열을 미리 파싱하고 컴파일하며, 쿼리 실행 시점에 파싱된 쿼리 문자열에 파라미터를 바인딩하여 데이터를 전달하므로 데이터베이스는 파라미터를 데이터로만 인식함
+
+          **■ ORM(JPA-Hibernate) 파라미터 바인딩 사용 예시**
+
+          ```
+          public class ItemService {
+              @PersistenceContext
+              private EntityManager em;
+              public List<Item> findItemsByUserInput(String userInput) {
+                  // JPQL을 사용하여 SQL Injection 방지
+                  String jpql = "SELECT i FROM Item i WHERE i.itemID > :userInput";
+                  Query query = em.createQuery(jpql, Item.class);
+                  query.setParameter("userInput", userInput);
+                  return query.getResultList();
+              }
+          }
+          ```
+
+          ▪ SQL Mapper(Mybatis) 내 '${}' 구문의 경우 사용자 입력값이 SQL 구문으로 해석되기 때문에 파라미터 바인딩('#{}')을 사용하여 구현
+
+          **■ SQL Mapper(Mybatis) 파라미터 바인딩 사용 예시**
+
+          ```
+          ...
+              <!-- 학생 정보 삽입 -->
+              <insert id="insertStudent" parameterType="com.example.Student">
+                  INSERT INTO STUDENTS (NUM, NAME, AGE, GRADE)
+                  VALUES (#{num}, #{name}, #{age}, #{grade})
+              </insert>
+              <!-- 학생 정보 삭제 -->
+              <delete id="deleteStudent" parameterType="int">
+                  DELETE FROM STUDENTS
+                  WHERE NUM = #{num}
+           </delete>
+          ...
+          ```
+
+      - os: "ASP.NET"
+        content: |
+          ▪ 정규표현식을 활용하여 SQL 키워드 및 특수문자에 대하여 필터링 로직 구현
+
+          **■ SQL 키워드 및 특수문자 필터링 로직 예시**
+
+          ```
+          public static string Sanitize(string input)
+          {
+              if (input == null)
+              {
+                  return null;
+              }
+              // 특수문자들을 공백으로 치환
+              string[] sqlKeywords = { "SELECT", "UNION", "INSERT", "UPDATE", "DELETE", "DROP", "--" };
+              string pattern = @"(?i)\b(" + string.Join("|", sqlKeywords) + @")\b|['""\\;()<>#/!*]";
+              return Regex.Replace(input, pattern, " ");
+          }
+          string sanitizedInput = Sanitize(userInput);
+          ...
+          ```
+
+          **■ Prepared Statement 사용 로직 예시**
+
+          ```
+          string strQry = "SELECT count(*) FROM users WHERE userName = @username
+                                                         AND Password = @password";
+          using (SqlCommand cmd = new SqlCommand(strQry, cnx))
+          {
+              cmd.Parameters.Add(new SqlParameter("@username", SqlDbType.VarChar, 50) {
+                                  Value = txtUser.Text });
+              cmd.Parameters.Add(new SqlParameter("@password", SqlDbType.VarChar, 50) {
+                                  Value = txtPassword.Text });
+              int intRecs = (int)cmd.ExecuteScalar();
+              if (intRecs > 0)
+              {
+                  FormsAuthentication.RedirectFromLoginPage(txtUser.Text, false);
+              }
+              else
+              {
+                  lblMsg.Text = "Login attempt failed.";
+              }
+          }
+          ```
+
+          **■ 적절한 에러 예외처리 로직 예시**
+
+          ```
+          catch (SqlException ex)
+          {
+              Logger.LogError(ex);  // 로그 상세 에러 기록
+              // 사용자에게 일반적인 메시지 표시
+              lblErrorMessage.Text = "데이터베이스 작업 중 오류가 발생했습니다.";
+          }
+          ```
+
+      - os: "ASP"
+        content: |
+          **■ 적절한 에러 예외처리 예시**
+
+          ```
+          On Error Resume Next ' 에러 발생 시 계속 실행
+          ...
+          If Err.Number <> 0 Then
+              ' 에러가 발생한 경우
+              Err.Clear ' 에러 삭제 처리
+          %>
+              <script language="javascript">
+                  alert("서버에 문제가 발생하였습니다. 잠시 후 다시 시도해 주세요.");
+                  location.replace("<%=local%>/login/login.asp?ba=search")
+              </script>
+          <%
+              response.end
+          End If
+          ```
+
+          ▪ SQL Server의 xp_cmdshell 기능의 경우 SQL Server 2005 버전부터 기본적으로 비활성화 되어있음
+
+          **■ xp_cmdshell 비활성화 처리 예시**
+
+          ```
+          sp_configure 'show advanced options', 1;     // SQL Server의 고급 옵션 활성화
+          GO
+          RECONFIGURE;
+          GO
+          sp_configure 'xp_cmdshell', 0;                     // xp_cmdshell 비활성화
+          GO
+          RECONFIGURE;
+          GO
+          ```
+
+      - os: "PHP"
+        content: |
+          ▪ ereg_replace, eregi_replace 의 경우, PHP 5.3.0 이후 삭제되었으며, addslashes/magic_quotes_gpc의 경우 멀티바이트 문자 입력 시 우회의 가능성이 존재하므로 preg_replace를 이용하여 구현
+
+          **■ SQL 키워드 및 특수문자 필터링 로직 예시**
+
+          ```
+          function sanitize($input) {
+              if ($input === null) {
+                  return null;
+              }
+              // 특수문자들을 공백으로 치환
+              $sqlKeywords = ["SELECT", "UNION", "INSERT", "UPDATE", "DELETE", "DROP", "--"];
+              $pattern = "/(?i)\\b(" . implode("|", $sqlKeywords) . ")\\b|['\"\\\\;()<>#\/!*]/";
+              return preg_replace($pattern, " ", $input);
+          }
+          $sanitizedInput = sanitize($userInput);
+          ```
+
+          **■ Prepared Statement 사용 로직 예시**
+
+          ```
+          ...
+          $sql = "SELECT * FROM users WHERE username = ?";
+          $stmt = $pdo->prepare($sql);
+          $stmt->execute([$userInput]);
+          ...
+          $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+          ...
+          ```
+
+          **■ 적절한 에러 예외처리 예시**
+
+          ```
+          ...
+          try {
+              // 데이터베이스 작업
+          } catch (PDOException $e) {             // PDO 확장의 표준 예외 클래스를 사용하여 예외처리
+              // 브라우저에 일반적인 오류 메시지를 반환
+              error_log($e->getMessage());
+              echo 'SQL Exception';
+          }
+          ...
+          ```
+
+  - id: "DI"
+    title: "디렉터리 인덱싱"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 서버 내 디렉터리 인덱싱 취약점 존재 여부 점검"
+      check_purpose: "디렉터리 인덱싱 취약점을 제거하여 특정 디렉터리 내 불필요한 파일 정보의 노출 및 비인가자가 민감한 파일에 대한 접근을 차단"
+      threat: "해당 취약점이 존재할 경우, 브라우저를 통해 특정 디렉터리 내 파일 리스트가 노출되어 응용 시스템의 구조가 외부에 공개될 수 있으며, 민감한 정보가 포함된 설정 파일 등이 노출될 경우 보안상 심각한 위험을 초래할 수 있음"
+      reference:
+        - "※ 디렉터리 인덱싱 취약점: 특정 디렉터리의 초기 페이지(index.html, home.html, default.asp 등) 파일이 존재하지 않을 때 디렉터리 목록을 출력하는 취약점"
+    target: "웹 애플리케이션 서버"
+    criteria:
+      good: "디렉터리 파일 리스트가 노출되지 않는 경우"
+      vulnerable: "디렉터리 파일 리스트가 노출되는 경우"
+    action: "웹 애플리케이션 서버 설정을 변경하여 디렉터리 파일 리스트가 노출되지 않도록 설정"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "공통"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) URL 경로 중 확인하고자 하는 디렉터리 경로에 대하여 주소창에 입력하여 인덱싱 여부 확인
+
+          [ 디렉터리 인덱싱 취약점 유무 판단 ]
+
+      - os: "Apache"
+        content: |
+          **■ 조치 방법**
+
+          ▪ httpd.conf 파일 내 Indexes 옵션 제거 후 서버 재기동
+
+          **Apache 서버 설정 예시**
+
+          ```
+          <Directory /var/www/html>
+          Options Indexes FollowSymLinks
+          # Indexes 옵션 제거
+          Options FollowSymLinks
+          </Directory>
+          ```
+
+      - os: "Tomcat"
+        content: |
+          **■ 조치 방법**
+
+          ▪ web.xml 파일 내 아래 지시자 수정 후 서버 재기동
+
+          **Tomcat 서버 설정 예시**
+
+          ```
+          <init-param>
+          <param-name>listings</param-name>
+          <param-value>false</param-value>
+          </init-param>
+          ```
+
+      - os: "IIS"
+        content: |
+          **■ 조치 방법**
+
+          **(6.0 이하)**
+
+          ▪ 인터넷 정보 서비스 → 등록 정보 → 홈 디렉터리 → 디렉터리 검색 해제
+
+          [ 디렉터리 검색 옵션 해제 설정 ]
+
+          **(7.0 이상)**
+
+          ▪ IIS 관리자 → 디렉터리 검색 → 사용 안 함
+
+          [ 디렉터리 검색 기능 사용 안함 설정 ]
+
+      - os: "Nginx"
+        content: |
+          **■ 조치 방법**
+
+          ▪ /etc/nginx/sites-available/default 등 파일 내 아래 지시자 수정 후 서버 재기동
+
+          **Nginx 서버 설정 예시**
+
+          ```
+          ...
+          server {
+          location / {
+          autoindex off;
+          }
+          }
+          ...
+          ```
+
+  - id: "EP"
+    title: "에러 페이지 적용 미흡"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 에러 페이지 내 불필요한 정보 노출 여부 점검"
+      check_purpose: "사용자 정의 에러 페이지를 설정하여 기본 서버 에러 페이지 내 불필요한 정보(서버 버전 정보, 시스템 절대 경로, 스택 트레이스 등)의 제공을 차단하기 위함"
+      threat: "에러 페이지 내 서버 및 응용 시스템의 상세한 정보를 포함한 경우, 시스템 구조와 스택 트레이스, 데이터베이스 쿼리 등 민감한 정보를 노출시켜 공격 벡터로 악용할 가능성 존재"
+      reference:
+        - "※ 소스코드 및 취약점 점검 필요"
+    target: "웹 애플리케이션 서버, 웹 방화벽"
+    criteria:
+      good: "에러 발생 시 자체 정의 에러 페이지를 출력하여 과도한 정보가 노출되지 않는 경우"
+      vulnerable: "에러 발생 시 기본 에러 페이지가 출력되며, 해당 페이지에 불필요한 정보(서버 버전 정보, 시스템 경로, 스택 트레이스 등)가 노출되는 경우"
+    action: "웹 애플리케이션 서버 내 사용자 정의 에러 페이지를 적용함으로써 불필요한 정보 노출을 방지"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "공통"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 에러 유도 시 에러 페이지 내 불필요한 정보(서버 버전 정보, 시스템 절대 경로, 스택 트레이스 등)가 노출되는지 확인
+
+          [ 에러 페이지 내 서버 버전 정보 노출 ]
+
+      - os: "Apache"
+        content: |
+          **■ 조치 방법**
+
+          ▪ apache2.conf 또는 httpd.conf 파일 내 아래 지시자 추가 후 서버 재기동
+
+          **응답 헤더 내 서버 버전 정보 제거 예시**
+
+          ```
+          ...
+          ServerTokens Prod
+          ServerSignature Off
+          ...
+          ```
+
+          **사용자 에러 페이지 정의 예시**
+
+          ```
+          # 예) ErrorDocument 404 /main/error.html
+          ErrorDocument 404 [에러 페이지 경로]
+          ErrorDocument 405 [에러 페이지 경로]
+          # 추가적으로 에러 코드 등록하여 설정
+          ...
+          ```
+
+      - os: "Tomcat"
+        content: |
+          **■ 조치 방법**
+
+          ▪ server.xml 파일 내 아래 지시자 추가 후 서버 재기동
+
+          **응답 헤더 내 서버 버전 정보 제거 예시**
+
+          ```
+          # server.xml 파일 내 <Connector> 요소에 아래 지시자 추가 후 서버 재기동
+          <Connector port="8080" protocol="HTTP/1.1"
+          connectionTimeout="20000"
+          redirectPort="8443"
+          maxParameterCount="1000"
+          server=" "
+          />
+          ```
+
+          **개발용 리포트 비활성화 예시**
+
+          ```
+          # server.xml 파일 내 아래 지시자 추가 후 서버 재기동
+          <Valve className="org.apache.catalina.valves.ErrorReportValve"
+                  showReport="false"
+                  showServerInfo="false" />
+          </Host>
+          ```
+
+          **에러 페이지 매핑 예시**
+
+          ```
+          <!-- web.xml -->
+          <error-page>
+            <error-code>404</error-code>
+            <location>/errors/404</location>
+          </error-page>
+          <error-page>
+            <error-code>500</error-code>
+            <location>/errors/500</location>
+          </error-page>
+          <!-- 모든 예외(최상위) 공통 500 처리 -->
+          <error-page>
+            <exception-type>java.lang.Exception</exception-type>
+            <location>/errors/500</location>
+          </error-page>
+          ```
+
+      - os: "Nginx"
+        content: |
+          **■ 조치 방법**
+
+          ▪ nginx.conf 파일 내 아래 지시자 추가 후 서버 재기동
+
+          **응답 헤더 내 서버 버전 정보 제거 예시**
+
+          ```
+          ...
+          http {
+          server_tokens off;
+          ...
+          }
+          ...
+          ```
+
+          ▪ /etc/nginx/sites-available/default 파일 내 아래 지시자 추가 후 서버 재기동
+
+          **사용자 에러 페이지 정의 예시**
+
+          ```
+          server {
+              listen 80;
+              ...
+              # 기타 설정
+              ...
+              error_page 400 401 402 405 /custom_4xx.html;
+              error_page 404 /custom_404.html;
+              error_page 500 502 503 504 /custom_5xx.html;
+              location = /custom_404.html {
+                  root /var/www/html;
+                  internal;
+              }
+              location = /custom_4xx.html {
+                  root /var/www/html;
+                  internal;
+              }
+              location = /custom_5xx.html {
+                  root /var/www/html;
+                  internal;
+              }
+          ...
+          }
+          ```
+
+      - os: "IIS (6.0 이하)"
+        content: |
+          **■ 조치 방법**
+
+          **※ 응답 헤더**
+
+          ▪ Microsoft사의 URLScan 3.1 도구 지원 종료로 인한 서버 버전 제거 제한
+
+          **※ 에러 페이지**
+
+          ▪ 인터넷 정보 서비스 → 등록 정보 → 사용자 정의 오류 → 등록 정보 편집 → 별도 에러 페이지 지정
+
+          [ 사용자 정의 에러 페이지 설정 ]
+
+      - os: "IIS (7.0 이상)"
+        content: |
+          **■ 조치 방법**
+
+          **※ 응답 헤더**
+
+          ▪ URL Rewrite 모듈 설치 → IIS 관리자 → URL 재작성 → 서버 변수 보기 → 추가 → RESPONSE_SERVER 변수 추가 → 규칙 추가 → 아웃바운드 규칙(빈 규칙) → 규칙 추가 → 적용
+
+          ▪ URL Rewrite 모듈 (https://www.iis.net/downloads/microsoft/url-rewrite)
+
+          [ 응답 헤더 내 서버 버전 정보 제거 ]
+
+          **※ 에러 페이지**
+
+          ▪ IIS 관리자 → 오류 페이지 → 기능 설정 편집 → 사용자 지정 오류 페이지
+
+          [ 사용자 정의 에러 페이지 설정 ]
+
+  - id: "IL"
+    title: "정보 누출"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 내 중요 정보(개인정보, 금융 정보 등) 및 불필요한 정보(주석 내 디버깅 정보, 초기 샘플페이지, 백업 파일 등)의 노출 여부 점검"
+      check_purpose: "웹 애플리케이션 내 중요 정보(개인정보, 금융 정보 등)에 대해 마스킹 처리를 하고, 서비스 제공 중 불필요한 정보(주석 내 디버깅 정보, 초기 샘플 페이지, 백업 파일 등)를 삭제하여 민감한 정보와 내부 시스템 정보의 노출을 차단하기 위함"
+      threat: "웹 애플리케이션 운영 시 중요 정보(개인정보, 금융 정보 등)가 평문으로 노출될 경우, 개인정보 유출, 신원 도용, 피싱 공격 등의 위협이 발생할 수 있으며, 서버나 WAS의 초기 샘플 페이지, 백업 파일, 압축 파일 등이 노출될 경우, 공격자가 시스템 구조를 파악하고 보안 설정 및 접근 제어 정책을 유출하여 2차 공격에 활용할 수 있음"
+      reference:
+        - "※ 중요 정보: 고유식별정보(주민등록번호), 비밀번호(로그인 비밀번호, 계좌 비밀번호, 공인인증서 비밀번호 등), 신용정보(보안카드번호, 카드번호 등) 등"
+        - "※ 중요 정보 노출(일회성 노출)이 반드시 필요한 서비스의 경우 본인인증 절차 적용 시 예외 처리"
+        - "※ 소스코드 및 취약점 점검 필요"
+    target: "웹 애플리케이션 소스코드, 웹 애플리케이션 서버"
+    criteria:
+      good: "중요 정보가 마스킹 처리되어 있으며, 서비스 운영 및 서버 사이드의 구조를 파악할 수 있는 불필요한 정보가 노출되지 않는 경우"
+      vulnerable: "중요 정보가 평문으로 노출되거나, 서비스 운영 및 서버 사이드의 구조를 파악할 수 있는 과도한 정보가 노출되는 경우"
+    action: "중요 정보를 마스킹 처리하고, 샘플 페이지나 불필요한 정보를 제공하는 요소를 삭제하여 과도한 정보 노출을 최소화함으로써 민감 정보와 내부 시스템 구조의 노출을 방지함"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "공통"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 웹 애플리케이션 내 중요 정보(개인정보, 금융정보 등)의 평문 노출 여부 점검
+
+          [ 페이지 내 중요 정보 평문 노출 ]
+
+          Step 2) 서버나 WAS의 초기 샘플 페이지, 백업파일 등 불필요한 정보의 노출 유무 점검
+
+          [ 초기 샘플 페이지 내 중요 정보 노출 ]
+
+          Step 3) HTML 소스코드 내 중요 정보가 코드 및 주석을 통한 노출 여부 점검
+
+          [ HTML 주석 내 중요 정보 노출 ]
+
+          **■ 조치 방법**
+
+          1. robots.txt, web.config, nginx.conf 파일 작성을 통해 검색 차단할 디렉터리, 확장자, 페이지 등을 지정할 수 있으며 HTML 태그 내에 META 태그를 추가하여 검색엔진의 인덱싱을 차단함
+          2. 웹 디렉터리 내 삭제해야 할 파일 태그 확장자에 포함된 백업 파일을 모두 삭제하고, *.txt 확장자와 같이 작업 중 생성된 일반 텍스트 파일이나 이미지 파일 등 불필요한 파일에 대하여 제거
+          3. 웹 서버 설정 후 초기 페이지와 초기 디렉터리 및 배너를 삭제하여 Banner Grab에 의한 시스템 정보 유출을 차단함
+          4. 아래 개인정보 마스킹 기준 예시를 참고하여 개인정보 항목의 일부를 마스킹해야 함
+          5. 개발 중 작성된 주석 문자, 디버그 정보, 시스템 구조 관련 정보 등이 외부에 노출되지 않게 제거
+
+          **※ 삭제 권고 파일 확장자 예시**
+
+          | | | | | | |
+          |---|---|---|---|---|---|
+          | \*.bak | \*.backup | \*.org | \*.old | \*.zip | \*.log |
+          | \*.sql | \*.new | \*.txt | \*.tmp | \*.temp | \*.! |
+
+          **※ 개인정보 마스킹 기준 예시** (참고 문서 : 개인정보보호위원회_홈페이지 개인정보 노출방지 안내서)
+
+          | 개인정보 | 설명 | 예시 |
+          |----------|------|------|
+          | 성명 | 성명 중 한 글자 이상 | 홍\*동 |
+          | 주민등록번호 | 뒤에서부터 6자리 | 901231-1\*\*\*\*\*\* |
+          | 여권번호 | 뒤에서부터 4자리 | 12345\*\*\*\* |
+          | 연락처 | 전화번호 또는 휴대폰 뒤 4자리 | 010-1234-\*\*\*\* |
+          | 카드번호 | 7번째에서 12번째자리 | 9430-82\*\*-\*\*\*\*-2393 |
+          | 계좌번호 | 뒤에서부터 5자리 | 430-20-1\*\*\*\*\* |
+
+  - id: "XS"
+    title: "크로스사이트 스크립트"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 내 악성 스크립트가 다른 사용자의 브라우저에서 실행되는 취약점 존재 여부 점검"
+      check_purpose: "사용자 입력값에 대한 검증을 실시하여, 사용자 세션 탈취, 악성 코드 삽입 등의 악의적인 스크립트 실행을 차단하기 위함"
+      threat: "사용자 입력값에 대한 필터링이 할 경우, 공격자는 사용자 입력값 내 악의적인 스크립트(JavaScript, VBScript, ActiveX, Flash 등)를 삽입하여 사용자의 쿠키(세션)를 탈취하거나 피싱 사이트로 유도하는 등의 악의적인 공격을 수행할 수 있음"
+      reference:
+        - "※ 크로스사이트 스크립팅: 악의적인 스크립트를 웹 페이지에 삽입하여 사용자 세션 탈취, 키로깅, 피싱 공격 등을 유발하는 기법으로, 크게 저장형(Stored)과 반사형(Reflected), DOM 기반 공격 방식으로 나뉨"
+        - "※ 소스코드 및 취약점 점검 필요"
+    target: "웹 애플리케이션 소스코드, 웹 방화벽"
+    criteria:
+      good: "사용자 입력값에 대해 검증 및 필터링이 이루어져, 악의적인 스크립트가 실행되지 않는 경우"
+      vulnerable: "사용자 입력값에 대한 검증 및 필터링이 이루어지지 않으며, HTML 코드가 입력 및 실행되는 경우"
+    action: "특수문자에 대해 필터링 처리와 출력값 인코딩(HTML 엔티티, 이스케이프 등)을 적용하여 악성 스크립트 실행을 방지하며, 부득이하게 HTML 코드를 사용해야 하는 경우 화이트리스트 방식을 적용해 허용된 HTML 코드만 처리하도록 설정"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "공통"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 사용자 입력값을 전달받아 HTML 상에 렌더링되는 애플리케이션(게시판, 검색 등)에 스크립트 구문 삽입 후 실행되는지 확인
+
+          ▪ 게시글 작성 시 스크립트 구문을 삽입하여 글 열람 시 스크립트가 동작하는 경우(Stored XSS)
+
+          [ Stored(저장형) XSS 취약점 점검 ]
+
+          ▪ 입력값이 HTML 상에 렌더링되어 스크립트가 삽입된 URL 접근 시 스크립트가 동작하는 경우(Reflected XSS)
+
+          [ Reflected(반사형) XSS 취약점 점검 ]
+
+          **■ 조치 방법**
+
+          1. 크로스사이트 스크립팅 공격에 사용되는 특수문자에 대하여 입력값 검증 및 필터링(HTML 엔티티, 이스케이프 등)처리 로직을 서버 사이드에서 구현
+          2. 부득이하게 HTML 코드를 사용해야 하는 경우 화이트리스트 방식을 적용하여 허용된 HTML 코드만 처리
+          3. 웹 방화벽에서 웹 태그 및 스크립트 관련 특수문자 필터링 룰셋을 적용하여 추가적인 방어 확보
+          4. 세션 탈취 방지를 위해 쿠키에 HttpOnly, Secure, SameSite 옵션을 설정하여 노출되지 않도록 보호
+
+          **※ 특수문자 필터링 예시**
+
+          | 구분 | 필터링 예시 | | | | | | |
+          |------|---|---|---|---|---|---|---|
+          | 변경 전 | < | > | " | ( | ) | # | & |
+          | 변경 후 | &amp;lt; | &amp;gt; | &amp;quot; | &amp;#40; | &amp;#41; | &amp;#35; | &amp;amp; |
+
+      - os: "Java"
+        content: |
+          ▪ 입력 문자열 내 특수 문자를 HTML Entity로 변환하는 예시
+
+          **사용자 입력값 HTML Entity 처리 로직 예시**
+
+          ```
+          ...
+          public static String sanitizeInput(String input) {
+              if (input == null) return null;
+              return input.replaceAll("&", "&amp;")
+                          .replaceAll("<", "&lt;")
+                          .replaceAll(">", "&gt;")
+                          .replaceAll("\"", "&quot;")
+                          .replaceAll("'", "&#39;");
+              /* 필터링 문자 추가*/
+          }
+          ...
+          ```
+
+      - os: "ASP.NET"
+        content: |
+          ▪ 입력 문자열 내 특수 문자를 HTML Entity로 변환하는 예시
+
+          **사용자 입력값 HTML Entity 처리 로직 예시**
+
+          ```
+          StringBuilder sb = new StringBuilder();
+          foreach (char c in input)
+          {
+              switch (c)
+              {
+                  case '<':
+                      sb.Append("&lt;");
+                      break;
+                  ...
+                  /* 필터링 문자 추가*/
+                  ...
+                  default:
+                      sb.Append(c);
+                      break;
+              }
+          }
+          return sb.ToString();
+          ...
+          ```
+
+      - os: "PHP"
+        content: |
+          ▪ 입력 문자열 내 특수 문자를 HTML Entity로 변환하는 예시
+
+          **사용자 입력값 HTML Entity 처리 로직 예시**
+
+          ```
+          function escapeHtml($input) {
+              return htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8', false);
+          }
+
+          // 추가적인 문자열 필터링이 필요한 경우
+          function escapeHtmlExtended($input) {
+              $escaped = htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8', false);
+              $additionalEscapes = [
+                  '\\' => '&#92;',
+                  '(' => '&#40;',
+                  ')' => '&#41;',
+                  '#' => '&#35;'
+              ];
+              return strtr($escaped, $additionalEscapes);
+          }
+          ```
+
+  - id: "CF"
+    title: "크로스사이트 요청 위조(CSRF)"
+    domain: ""
+    severity: "상"
+    description:
+      check_content: "웹 애플리케이션 내 사용자의 인증 세션을 악용하여 의도하지 않은 위조 요청 가능 여부 점검"
+      check_purpose: "사용자가 인증된 세션을 가진 상태에서 공격자가 의도한 위조 요청이 전송‧처리되지 않도록 하여 비정상적인 상태 변경을 방지하기 위함"
+      threat: "CSRF 취약점이 존재할 경우, 공격자는 사용자가 로그인된 세션을 악용하여 인증정보 없이도 위조된 요청을 전송할 수 있음. 이로 인해 사용자의 의도와 무관하게 비밀번호 변경, 계좌 이체, 게시글 삭제, 개인정보 수정 등 권한 있는 사용자가 수행할 수 있는 행위가 공격자에 의해 실행될 수 있음"
+      reference:
+        - "※ CSRF(Cross Site Request Forgery): 사용자가 자신의 의지와 무관하게 공격자가 의도한 행위(수정, 삭제, 등록 등)를 특정 웹사이트에 요청하게 하는 공격 유형으로, 사용자의 인증된 세션을 악용하여 비인가된 행위 수행 가능"
+        - "※ 소스코드 및 취약점 점검 필요"
+    target: "웹 애플리케이션 소스코드, 웹 방화벽"
+    criteria:
+      good: "중요한 요청(비밀번호 변경, 송금 등)에 대해 CSRF 방어 토큰이 적용되어 있으며, 토큰 검증이 정상적으로 수행되는 경우"
+      vulnerable: "중요한 요청에 대해 CSRF 토큰이 없거나, 토큰 검증을 수행하지 않아 인증된 사용자의 요청 위조가 가능한 경우"
+    action: "중요한 요청에는 CSRF 방어 토큰을 포함하고, 서버 측에서 해당 토큰의 유효성을 검증하도록 설정하며, Referer/Origin 헤더 검증 및 SameSite 쿠키 옵션을 활용하여 불필요한 외부 도메인 요청이 차단되도록 구성"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "공통"
+        content: |
+          **■ 점검 방법**
+
+          Step 1) 크로스사이트 스크립팅(XSS) 취약점 존재 여부 확인 후 데이터 수정 기능(게시글 등록, 비밀번호 변경 등)이 존재하는 요청(Request) 정보를 분석하여 임의의 명령을 수행하는 스크립트 삽입 후 해당 게시글을 타 사용자가 열람하였을 경우 타 사용자의 권한으로 해당 스크립트의 실행 유무 확인
+
+          [ CSRF 취약점 점검 ]
+
+          **■ 조치 방법**
+
+          1. 주요 변경 요청(비밀번호 변경, 송금, 개인정보 수정 등)에 대해 CSRF 토큰을 발급하고 요청 시 토큰을 반드시 포함하도록 구현
+          2. 서버 측에서 CSRF 토큰의 유효성을 검증하여 토큰이 누락되거나 위조된 요청은 차단하도록 설정
+          3. Referer 및 Origin 헤더 검증을 통해 외부 사이트에서 발생한 요청 차단
+          4. SameSite 쿠키 옵션을 적용하여 외부 사이트에서 인증 쿠키가 자동 전송되지 않도록 설정
+          5. HTTPS 환경에서 쿠키에 Secure, HttpOnly 속성을 적용하여 세션 탈취 및 악용 가능성 최소화
+
+          **※CSRF Token**
+
+          ▪ CSRF Token은 서버에서 생성한 고유하고 예측 불가능한 값으로 각 사용자 세션 또는 요청마다 생성되며 생성된 Token은 클라이언트의 요청에 포함되어 서버로 전송되고 서버는 이를 검증하여 요청의 정상 여부 판단
+
+          **CSRF Token 생성 예시**
+
+          ```
+          // Java
+          ...
+          // CSRF Token 생성 및 세션 저장
+          public String index(Model model, HttpServletRequest request) {
+              HttpSession session = request.getSession();
+              String csrfToken = generateCsrfToken();
+              session.setAttribute("csrfToken", csrfToken);
+              model.addAttribute("csrfToken", csrfToken);
+              model.addAttribute("inputs", inputs);
+              return "index";
+          }
+
+          // CSRF Token 생성 함수
+          private String generateCsrfToken() {
+              SecureRandom secureRandom = new SecureRandom();
+              byte[] token = new byte[16];
+              secureRandom.nextBytes(token);
+              return Base64.getUrlEncoder().encodeToString(token);
+          }
+
+          // CSRF Token 검증
+          @PostMapping("/submit")
+          public String submit(@RequestParam("input") String input,
+                               @RequestParam("csrfToken") String csrfToken,
+                               HttpServletRequest request,
+                               Model model) {
+              HttpSession session = request.getSession();
+              String sessionToken = (String) session.getAttribute("csrfToken");
+
+              if (sessionToken == null || !sessionToken.equals(csrfToken)) {
+                  throw new IllegalStateException("Invalid CSRF token");
+              }
+              String sanitizedInput = sanitizeInput(input);
+              inputs.add(sanitizedInput);
+              model.addAttribute("inputs", inputs);
+              return "index";
+          }
+
+          // index.html
+          <form action="/submit" method="post">
+              <input type="hidden" name="csrfToken" th:value="${csrfToken}" />
+              <label for="input">Enter text:</label>
+              <input type="text" id="input" name="input">
+              <button type="submit">Add</button>
+          </form>
+          ...
+          ```
+
+  - id: "SF"
+    title: "서버사이드 요청 위조(SSRF)"
+    severity: "상"
+    domain: "10. Web Application(웹) 보안"
+    target: "웹 애플리케이션 소스코드, 웹 애플리케이션 서버, 웹 방화벽, API 서버"
+    description:
+      check_content: "입력값을 통해 외부에서 직접적인 접근이 제한된 내부 서버 자원에 접근하여 악의적인 요청을 처리하거나 중요 정보의 유출 여부 점검"
+      check_purpose: "입력값 검증을 통해 내부 서버 자원에 대한 비인가 접근을 차단하여 중요 정보(개인정보, 금융 정보 등) 탈취, 데이터 변조, 임의 명령 실행 등 악의적인 행위를 방지하기 위함"
+      threat: "서버 간 통신 시 입력값에 대한 검증이 미흡할 경우, 외부에서 접근이 제한된 내부 서버 자원에 대한 정보 수집, 중요 정보(개인정보, 금융 정보, 인사 정보 등) 탈취, 임의 명령 실행, 클라우드 환경 내 메타데이터 수집을 통한 네트워크 인프라 장악이 가능함"
+      reference:
+        - "※ 소스코드 및 취약점 점검 필요"
+    criteria:
+      good: "외부 입력값이 화이트리스트 방식으로 검증되어, 허용된 URL 또는 IP 범위 내에서만 처리될 경우"
+      vulnerable: "외부 입력값이 검증이 이루어지지 않고 처리되어 허용되지 않는 자원에 임의적인 접근 및 요청이 가능한 경우"
+    action: "입력값 검증 및 화이트리스트를 적용하여 허용된 URL과 IP주소만 접근 가능하도록 설정하며, 네트워크를 분리하여 내부 자원에 대한 비인가 접근을 차단"
+    impact: "일반적인 경우 영향 없음"
+    examples:
+      - os: "공통"
+        content: |
+          **- 점검 방법**
+
+          Step 1) 사용자 입력을 통해 서버 간 통신이 이루어지는 지점에서 허용되지 않은 주소값을 입력하여 응답, 지연 시간 등을 분석해 취약점 가능성 확인
+
+          [서버 간 통신 유무 확인]
+
+          [입력값에 대한 내부 서버 응답값 노출 여부 확인]
+
+          Step 2) 습득한 정보를 바탕으로 우회 기법, 포트 스캔, 내부 정보 탈취 등 익스플로잇 시도 및 영향 평가
+
+          [심화 공격 수행]
+
+          **- 조치 방법**
+
+          1. 외부 요청에 대해 허용된 URL이나 IP주소를 화이트리스트로 정의하여 허용된 대상에만 접근이 가능하도록 설정
+          2. 내부 네트워크 대역 및 관리용 포트에 대한 요청을 감지하고 차단
+          3. URL 접근에 실패할 경우 사용자에게 에러 정보나 응답값을 노출하지 않고, 일반적인 에러메시지 출력
+          4. http, https 외의 다른 프로토콜 (FTP, SMB, SMTP 등)과 URL 스키마(file://, gopher://, data://, dict:// 등)에 대한 접근을 차단해야 하며, 내부 호스트명이 외부에 노출되지 않도록 DNS 설정을 조정
+          5. 애플리케이션 서버와 중요 내부 시스템간 네트워크 분리를 통하여 불필요한 통신을 제한하여 권한 없는 접근과 외부로부터의 직접적인 접근을 방지
+      - os: "Java"
+        content: |
+          **※ Java**
+
+          **화이트 리스트 방식을 이용한 URL 및 IP주소 접근 제한 로직 예시**
+
+          ```
+          ...
+          private final List<String> allowedDomains = Arrays.asList("example.com", ...);
+          private final Map<String, List<Integer>> allowedIPsAndPorts = new HashMap<>();
+
+          public UrlValidator() {
+              allowedIPsAndPorts.put("192.168.1.100", Arrays.asList(80, 443, 8080));
+              allowedIPsAndPorts.put("10.0.0.1", Arrays.asList(80, 443));
+          }
+          ...
+          public boolean isUrlAllowed(String urlString) {
+              try {
+                  URL url = new URL(urlString);
+                  String protocol = url.getProtocol();
+
+                  // HTTP와 HTTPS 스키마만 허용
+                  if (!("http".equalsIgnoreCase(protocol) || "https".equalsIgnoreCase(protocol))) {
+                      return false;
+                  }
+
+                  String host = url.getHost();
+                  int port = url.getPort() == -1 ? url.getDefaultPort() : url.getPort();
+
+                  if (allowedDomains.contains(host)) {
+                      return true;
+                  }
+
+                  if (allowedIPsAndPorts.containsKey(host)) {
+                      return allowedIPsAndPorts.get(host).contains(port);
+                  }
+
+                  return false;
+              } catch (Exception e) {
+                  return false;
+              }
+          }
+          ...
+          ```
+      - os: "ASP.NET"
+        content: |
+          **※ ASP.NET**
+
+          **화이트 리스트 방식을 이용한 URL 및 IP주소 접근 제한 로직 예시**
+
+          ```
+          ...
+          private readonly List<string> _allowedDomains = new List<string> { "example.com", ... };
+          private readonly Dictionary<string, List<int>> _allowedIPsAndPorts = new Dictionary<string, List<int>>
+          {
+              { "127.0.0.1", new List<int> { 80, 443, 8000 } },
+              { "10.0.0.1", new List<int> { 80, 443 } }
+          };
+          public bool IsUrlAllowed(string urlString)
+          {
+              if (!Uri.TryCreate(urlString, UriKind.Absolute, out Uri uri))
+              {
+                  return false;
+              }
+              // HTTP와 HTTPS 스키마만 허용
+              if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+              {
+                  return false;
+              }
+
+              string host = uri.Host;
+              int port = uri.Port;
+              // 도메인 확인
+              if (_allowedDomains.Contains(host))
+              {
+                  return true;
+              }
+              // IP주소와 포트 확인
+              if (_allowedIPsAndPorts.TryGetValue(host, out List<int> allowedPorts))
+              {
+                  return allowedPorts.Contains(port);
+              }
+              return false;
+          }
+          ...
+          ```
+      - os: "PHP"
+        content: |
+          **※ PHP**
+
+          **화이트 리스트 방식을 이용한 URL 및 IP주소 접근 제한 로직 예시**
+
+          ```
+          ...
+          function isUrlAllowed($url) {
+              $allowedDomains = ['example.com', 'api.example.com'];
+              $allowedIPsAndPorts = [
+                  '192.168.10.10' => [80, 443, 8000],
+                  '10.0.0.1' => [80, 443]
+              ];
+              $parsedUrl = parse_url($url);
+              if (!$parsedUrl || !isset($parsedUrl['host'])) {
+                  return false;
+              }
+              $host = $parsedUrl['host'];
+              $port = isset($parsedUrl['port']) ? $parsedUrl['port'] : ($parsedUrl['scheme'] === 'https' ? 443 : 80);
+              // 도메인 확인
+              if (in_array($host, $allowedDomains, true)) {
+                  return true;
+              }
+              // IP주소와 포트 확인
+              if (filter_var($host, FILTER_VALIDATE_IP)) {
+                  if (array_key_exists($host, $allowedIPsAndPorts)) {
+                      return in_array($port, $allowedIPsAndPorts[$host], true);
+                  }
+              }
+              return false;
+          }
+          ...
+          ```
+
+          ▪ php.ini 파일 내 allow_url_fopen 속성 활성화 시 file_get_contents() 함수를 이용하여 원격 URL에 대하여 접근 및 검색이 가능. 해당 속성을 비활성화하여 원격 URL을 참조할 수 없도록 제한하며 대안으로 cURL 라이브러리 사용
+
+          **cURL 라이브러리 사용 예시**
+
+          ```
+          ...
+          function fetchUrl($url) {
+              // cURL 세션 초기화
+              $ch = curl_init();
+
+              // cURL 옵션 설정
+              curl_setopt_array($ch, [
+                  CURLOPT_URL => $url,
+                  CURLOPT_RETURNTRANSFER => false,     // 결과를 문자열로 반환
+                  CURLOPT_FOLLOWLOCATION => false,     // 리다이렉트 제한(기본값: false)
+                  CURLOPT_MAXREDIRS => 3,             // 최대 리다이렉트 횟수 지정
+                  CURLOPT_TIMEOUT => 30,              // 세션의 최대 허용 시간 지정 (초)
+
+                  // 접근 가능한 프로토콜을 http, https로 제한
+                  CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+                  CURLOPT_SSL_VERIFYPEER => true,     // SSL 인증서 검증
+              ]);
+
+              // cURL 실행 및 결과 저장
+              $response = curl_exec($ch);
+              $error = curl_error($ch);
+              $info = curl_getinfo($ch);
+
+              // cURL 세션 종료
+              curl_close($ch);
+
+              // 결과 반환
+              return [
+                  'success' => ($error === ''),
+                  'content' => $response,
+                  'error' => $error,
+                  'info' => $info
+              ];
+          }
+          ...
+          ```
+
+          ▪ allow_url_include 속성 활성화 시 원격 URL을 PHP의 include(), require() 함수를 통해서 사용 가능. 공격자가 악의적인 코드가 포함된 원격 파일을 실행할 수 있는 위험이 존재하므로 php.ini 파일 내 해당 속성 비활성화
+
+          **allow_url_include 및 allow_url_fopen 속성 비활성화**
+
+          ```
+          ...
+          ;;;;;;;;;;;;;;;;;;
+          ; Fopen wrappers ;
+          ;;;;;;;;;;;;;;;;;;
+
+          ; Whether to allow the treatment of URLs (like http:// or ftp://) as files.
+          ; https://php.net/allow-url-fopen
+          allow_url_fopen=Off
+
+          ; Whether to allow include/require to open URLs (like https:// or ftp://) as files.
+          ; https://php.net/allow-url-include
+          allow_url_include=Off
+          ...
+          ```

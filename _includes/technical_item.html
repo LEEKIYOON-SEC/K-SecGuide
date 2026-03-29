@@ -1,0 +1,82 @@
+<details class="technical-item" id="{{ include.item.id | downcase }}">
+  <summary>
+    <strong>{{ include.item.id }}</strong>
+    {% if include.item.severity == "상" %}
+    <span class="label label-red">{{ include.item.severity }}</span>
+    {% elsif include.item.severity == "중" %}
+    <span class="label label-yellow">{{ include.item.severity }}</span>
+    {% else %}
+    <span class="label label-green">{{ include.item.severity }}</span>
+    {% endif %}
+    {{ include.item.title | xml_escape }}
+  </summary>
+
+  <div class="item-body">
+    <dl>
+      <dt>분류</dt>
+      <dd>{{ include.item.domain }}</dd>
+      {% if include.item.target %}
+      <dt>점검 대상</dt>
+      <dd>{{ include.item.target | xml_escape }}</dd>
+      {% endif %}
+    </dl>
+
+    <h3>개요</h3>
+    <table>
+      <tbody>
+        <tr><td><strong>점검 내용</strong></td><td>{{ include.item.description.check_content | xml_escape }}</td></tr>
+        <tr><td><strong>점검 목적</strong></td><td>{{ include.item.description.check_purpose | xml_escape }}</td></tr>
+        <tr><td><strong>보안 위협</strong></td><td>{{ include.item.description.threat | xml_escape }}</td></tr>
+      </tbody>
+    </table>
+
+    {% if include.item.description.reference and include.item.description.reference.size > 0 %}
+    <details class="ref-detail">
+      <summary><strong>참고</strong></summary>
+      <ul>
+        {% for ref in include.item.description.reference %}
+        <li>{{ ref | xml_escape }}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+
+    {% if include.item.criteria %}
+    <h3>판단 기준</h3>
+    <table>
+      <tbody>
+        <tr><td><strong>양호</strong></td><td>{{ include.item.criteria.good | xml_escape }}</td></tr>
+        <tr><td><strong>취약</strong></td><td>{{ include.item.criteria.vulnerable | xml_escape }}</td></tr>
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if include.item.action %}
+    <h3>조치 방법</h3>
+    <p>{{ include.item.action | xml_escape }}</p>
+    {% endif %}
+
+    {% if include.item.impact %}
+    <h3>조치 시 영향</h3>
+    <p>{{ include.item.impact | xml_escape }}</p>
+    {% endif %}
+
+    {% if include.item.examples and include.item.examples.size > 0 %}
+    <h3>점검 및 조치 사례</h3>
+    {% for example in include.item.examples %}
+    <details class="example-detail">
+      <summary><strong>{{ example.os | xml_escape }}</strong></summary>
+      <div class="example-content">
+        {% if example.content contains '```' %}
+        {{ example.content | markdownify }}
+        {% else %}
+        {{ example.content | replace: "
+# ", "
+\# " | markdownify }}
+        {% endif %}
+      </div>
+    </details>
+    {% endfor %}
+    {% endif %}
+  </div>
+</details>

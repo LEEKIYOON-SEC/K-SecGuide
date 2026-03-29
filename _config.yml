@@ -1,0 +1,61 @@
+# K-SecGuide — 주요정보통신기반시설 취약점 분석·평가 가이드 웹 레퍼런스
+# Jekyll Configuration
+
+title: K-SecGuide
+description: >-
+  주요정보통신기반시설 취약점 분석·평가 가이드 (관리/물리/기술)
+
+# GitHub Pages 배포 설정
+baseurl: "/K-SecGuide"
+url: "https://leekiyoon-sec.github.io"
+
+# 테마 설정 (GitHub Pages는 remote_theme 사용)
+# v0.8.2: GitHub Pages sassc와 호환되는 마지막 버전
+remote_theme: just-the-docs/just-the-docs@v0.8.2
+color_scheme: light
+
+# 한국어 설정
+lang: ko
+
+# 검색 설정
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+
+# 네비게이션 설정
+nav_sort: case_insensitive
+back_to_top: true
+back_to_top_text: "맨 위로"
+
+# Footer
+footer_content: ""
+
+# 빌드 설정
+markdown: kramdown
+kramdown:
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    block:
+      line_numbers: true
+
+# 파일 제외 (Jekyll 빌드에서 제외)
+exclude:
+  - source-pdf/
+  - scripts/
+  - CLAUDE.md
+  - CLAUDE_CODE_PROMPT.md
+  - README.md
+  - LICENSE
+  - Gemfile.lock
+  - node_modules/
+  - vendor/
+
+# 플러그인
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+  - jekyll-include-cache
